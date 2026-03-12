@@ -72,7 +72,7 @@ legend('Location', 'best');
 hold off;
 
 %%
-%[text] ## Get data low marsh redox data
+%[text] ## Get low marsh redox data
 % low and high marsh redox data. lots of mismatches because of troubleshooting the voltage problems.
 dataDir = uigetdir('Select logger .dat directory');
 lowMarshTbl = importCSdata(fullfile(dataDir,'cmarsh_lowmarsh_pheno_redox.dat'));
@@ -96,11 +96,11 @@ lowMarshTbl{rows,vars} = NaN;
 % Average the two soil temeratures
 lowMarshTbl.avgSoilTemp = (lowMarshTbl.soil1_c + lowMarshTbl.soil2_c)/2; 
 
-% one minute data
+% ====one minute data======================
 lowMarshminuteTbl = importCSdata(fullfile(dataDir,'cmarsh_lowmarsh_pheno_redox_1minute.dat'));  
 oldMinuteVarnames = lowMarshminuteTbl.Properties.VariableNames;
 lowMarshminuteTbl.Properties.VariableNames= renameTblVar(oldMinuteVarnames,"low");
-lowMarshminuteTbl = removevars(lowMarshminuteTbl,["RECORD"]); % Remove the record and p_temp columns from low marsh data
+lowMarshminuteTbl = removevars(lowMarshminuteTbl,"RECORD"); % Remove the record and p_temp columns from low marsh data
 % Start date after probes settled down
 % Remove bad data
 startDate = datetime('2025-08-25 00:00:00', TimeZone='America/New_York');
@@ -121,7 +121,7 @@ lowMarshminuteTbl = synchronize(lowMarshminuteTbl,lowMarshSoil,"union","linear")
 lowMarshminuteTbl.avgSoilTemp = (lowMarshminuteTbl.soil1_c + lowMarshminuteTbl.soil2_c)/2; 
 
 %%
-%[text] ## Get high marsh data
+%[text] ## Get high marsh redox data
 % ensure dataDir contains a valid folder path
 if exist('dataDir','var') ~= 1 || isempty(dataDir) || ~ischar(dataDir) && ~isstring(dataDir) || ~isfolder(dataDir)
     % Prompt user to pick a directory (returns 0 if Cancel)
@@ -136,40 +136,68 @@ end
 %dataDir = uigetdir('Select logger .dat directory');
 highMarshTbl = importCSdata(fullfile(dataDir,'cmarshhigh_redox.dat'));  %%Note - there is an extra column here ..last one. Don't need. 
 oldVarnames = highMarshTbl.Properties.VariableNames;
-highMarshTbl.Properties.VariableNames = renameVar(oldVarnames,"high");
+highMarshTbl.Properties.VariableNames = renameTblVar(oldVarnames,"high");
 highMarshTbl = removevars(highMarshTbl,["batteryVolt_Min","PTemp_C_Avg","RECORD"]);
-
-highMarshTblbackup = importCSdata(fullfile(dataDir,'cmarshhigh_redox.dat.backup')); %There are earlier time frame data.  Time interval for some of it is 15 min instead of 5 until 8/26, and then it's 5 min again.  BUT!!! FOUND A PROBLEM> There are repeated data in there in the .backup file. lines 3183-467- are repeats. Need to remove those lines. So....
+%There are earlier time frame data.  Time interval for some of it is 15 min instead of 5 until 8/26, and then it's 5 min again.  
+% BUT!!! FOUND A PROBLEM> There are repeated data in there in the .backup file. lines 3183-467- are repeats. Need to remove those lines. So..
 oldVarnames = highMarshTblbackup.Properties.VariableNames;
-highMarshTblbackup.Properties.VariableNames = renameVar(oldVarnames,"high"); 
+highMarshTblbackup = importCSdata(fullfile(dataDir,'cmarshhigh_redox.dat.backup')); 
+highMarshTblbackup.Properties.VariableNames = renameTblVar(oldVarnames,"high"); 
 highMarshTblbackup = removevars(highMarshTblbackup,["PTemp_C_Avg","RECORD"]);
 highMarshTblbackup = renamevars(highMarshTblbackup,"BattV","loggerBattV");
-
-
 highMarshTbl = [highMarshTblbackup;highMarshTbl];
-highMarshTbl = sortrows(highMarshTbl);           
+highMarshTbl = sortrows(highMarshTbl); 
 
+% ====one minute data======================
+
+highMarshminuteTbl = importCSdata(fullfile(dataDir,'cmarshhigh_redox_1minute.dat'));  
+highMarshminuteTblbackup = importCSdata(fullfile(dataDir,'cmarshhigh_redox_1minute.dat.backup.csv')); 
+highMarshminuteTbl = [highMarshminuteTblbackup;highMarshminuteTbl];
+highMarshminuteTbl = unique(highMarshminuteTbl);
+oldMinuteVarnames = highMarshminuteTbl.Properties.VariableNames;
+highMarshminuteTbl.Properties.VariableNames= renameTblVar(oldMinuteVarnames,"high");
+highMarshminuteTbl = removevars(highMarshminuteTbl,"RECORD"); % Remove the record columns from high marsh data
+
+% These startDate and endDate remove the setting-down time and time after take-out.
+startDate = datetime("2025-08-14 14:00:00", "TimeZone", "-05:00");
+endDate = datetime("2025-11-04 09:20:00", "TimeZone", "-05:00");
+highMarshTbl = highMarshTbl(timerange(startDate,endDate),:);
+highMarshminuteTbl = highMarshminuteTbl(timerange(startDate,endDate),:);
+% Save table
+save("results\highMarshTbl.mat","highMarshTbl")
+save("results\highMarshminuteTbl.mat","highMarshminuteTbl")
 %%
 %[text] ## Eh Temperature correction: it's miniscule compared to the variations we see. Eh (mV) = ORP (mV) - 0.718\*T + 224.41
 %[text] Using custom function mV2Eh, which takes a table, variable array, and temperature varible, and returns a table of corrected values.
 % Average the two soil temeratures
-lowMarshTbl.avgSoilTemp = (lowMarshTbl.soil1_c + lowMarshTbl.soil2_c)/2; %(lowmarsh_ArrayDbl(:,30)+lowmarsh_ArrayDbl(:,31))/2;
+lowMarshTbl.avgSoilTemp = (lowMarshTbl.soil1_c + lowMarshTbl.soil2_c)/2; 
 highMarshTbl.avgSoilTemp= (highMarshTbl.soil1_c + highMarshTbl.soil2_c)/2;
+highMarshminuteTbl.avgSoilTemp= (highMarshminuteTbl.Soil_C_1 + highMarshminuteTbl.Soil_C_2)/2;
 
 vars = highMarshTbl.Properties.VariableNames(contains(highMarshTbl.Properties.VariableNames,"cm"));
 highMarshEh = mV2Eh(highMarshTbl,vars,highMarshTbl.avgSoilTemp);
-highMarshTbl = [highMarshTbl,highMarshEh];
+highMarshTbl_Eh = [highMarshTbl,highMarshEh];
+
+vars = highMarshminuteTbl.Properties.VariableNames(contains(highMarshminuteTbl.Properties.VariableNames,"cm"));
+highMarshminuteTblEh = mV2Eh(highMarshminuteTbl,vars,highMarshminuteTbl.avgSoilTemp);
+highMarshminuteTbl_Eh = [highMarshminuteTbl,highMarshminuteTblEh];
+
+% Save files
+save("results\highMarshTbl_eH.mat","highMarshTbl_Eh")
+save("results\highMarshminuteTbl_eH.mat","highMarshminuteTbl_Eh")
+
+% Low Marsh
 
 vars = lowMarshTbl.Properties.VariableNames(contains(lowMarshTbl.Properties.VariableNames,"cm"));
 lowMarshEh = mV2Eh(lowMarshTbl,vars,lowMarshTbl.avgSoilTemp);
-lowMarshTbl = [lowMarshTbl,lowMarshEh];
+lowMarshTbl_Eh = [lowMarshTbl,lowMarshEh];
 
 vars = lowMarshminuteTbl.Properties.VariableNames(contains(lowMarshminuteTbl.Properties.VariableNames,"cm"));
-lowMarshEh = mV2Eh(lowMarshminuteTbl,vars,lowMarshminuteTbl.avgSoilTemp);
-lowMarshminuteTbl = [lowMarshminuteTbl,lowMarshEh];
+lowMarshminuteEh = mV2Eh(lowMarshminuteTbl,vars,lowMarshminuteTbl.avgSoilTemp);
+lowMarshminuteTbl_Eh = [lowMarshminuteTbl,lowMarshminuteEh];
  % Save files
- save("results\lowMarshTbl_eH.mat","lowMarshTbl")
- save("results\lowMarshminuteTbl_eH.mat","lowMarshminuteTbl")
+ save("results\lowMarshTbl_eH.mat","lowMarshTbl_Eh")
+ save("results\lowMarshminuteTbl_eH.mat","lowMarshminuteTbl_Eh")
 
 %[appendix]{"version":"1.0"}
 %---
