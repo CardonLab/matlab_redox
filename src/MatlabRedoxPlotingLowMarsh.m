@@ -1,13 +1,10 @@
 %[text] # Read saved MatLab files for tide, water tabel and redox.
 %[text] The redox files, "highMarshTbl" and "lowMarshTbl\_Eh" have temperture correctedEh .
 load("TidesTimetable.mat")
-load("highMarshWaterTable.mat")
 load("lowMarshWaterTable.mat")
-load("highMarshTbl.mat")
 load("lowMarshTbl_Eh.mat")
 load("lowMarshminuteTbl_Eh.mat")
 load("lowMarshWTPeaks.mat")
-load("highMarshWTPeaks.mat")
 
 %%
 %[text] ## Find start and end of battery peaks great than a threshold
@@ -23,9 +20,9 @@ rowsToNaN = findPeakGroups(lowMarshTbl_Eh(:,"BattV"));
 %[text] ## Set up Colors, Linestyle, and Start Date for plots
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% VARIETY OF GRAPHS OF VARYING USEFULNESS!
 %These startDate and endDate are used in various graphs, below
-startDate = datetime('2025-08-15 14:00:00');
-startDate.TimeZone = "-05:00";
+startDate = datetime("2025-08-15 14:00:00","TimeZone","-05:00");
 % endDate = datetime("today");
+endDate = datetime("2025-11-04 07:50:00","TimeZone","-05:00");
 lowMarshWTx = lowMarshWaterTable(lowMarshWaterTable.Properties.RowTimes > startDate, :);
 
 % Define colors and line styles for plots
@@ -61,9 +58,9 @@ for k = 2:numel(h)
     h(k).HandleVisibility = 'off';
 end
 hold off
-% savefig(gcf,'watertablebat.fig');
+savefig(gcf,'results\lowWatertablebat.fig');
 %%
-%[text] ## Plot Redox with Battery and Watertable
+%[text] ## Clean data
 % mask out the eradic battery voltages
 % TODO use a function to get the mask, rowsToNaN
 
@@ -94,26 +91,70 @@ lowMarshTbl_Eh.L10_15cmEhclean(rowsToNaN) = NaN;
 lowMarshTbl_Eh.L11_30cmEhclean = lowMarshTbl_Eh.L11_30cmEh;
 lowMarshTbl_Eh.L11_30cmEhclean(rowsToNaN) = NaN;
 %%
-%[text] ## Plot each probe's depths together
-
+%[text] ## Plots for each probe with watertable peaks and battery.
+startDate = datetime("2025-09-29 16:00:00","TimeZone","-05:00");
+%lowMarshTbl_Eh = lowMarshTbl_Eh(lowMarshTbl_Eh.Properties.RowTimes > startDate,:);
 probes = (["L12","L11","L10","L09","L08","L07"]);
-figure(WindowStyle="docked");
-% t=tiledlayout(3,2,"TileSpacing","compact")
-% title(t, 'Low marsh redox probe layout and data - north is up')
 allVars = lowMarshTbl_Eh.Properties.VariableNames;
+EhVars = allVars(contains(allVars,"Eh"));figs()
+EhVars_cleaned = EhVars(contains(EhVars,"clean"));
+% used cleaned varables
+EhVars = EhVars(~ismember(EhVars,strrep(EhVars_cleaned,"clean","")));
+figName = strcat("Low Marsh probe ",probes);
+customColors = [0 1 1;0 1 0;1 0 0;0 0 0;0 1 1;0 0 1];
+customLineStyles = [":";":";"-.";"-";"--"];
+widths = [1.5,2.0,2.5,2.75,2.0,2.0,2.0,2.0]; % Vary the line widths
+% t = tiledlayout(3, 3); 
+% t.TileSpacing = 'compact';   % Reduce spacing between tiles
+% t.Padding = 'compact';       % Reduce padding around the layout
+% title(t, 'Low marsh redox probe layout and data - north is up'); % Overall title for the layouttitle(t, 'Low marsh redox probe layout and data - north is up')
+ figs = gobjects(1,numel(probes));  % preallocate
  for f = 1:numel(probes)
-   vars = allVars(contains(allVars, probes(f)) & contains(allVars, "Eh"));
-    openfig("watertablebat.fig");
-    ax = gca;
+     
+    vars = sort(EhVars(contains(EhVars, probes(f))));
+    
+    figs(f) = openfig('results\lowWatertablebat.fig');
+    figs(f).Name = figName(f);
+    figs(f).NumberTitle = "off";
     hold on;
-    yyaxis(ax, 'left');
+    ax = gca;    
+    yyaxis(ax, 'left');    
+    ax.YColor = [0 0 0]; 
+    ax.ColorOrder = customColors;
+    ax.LineStyleOrder = customLineStyles;
+    ax.LineStyleCyclingMethod ="withcolor";
+
     hProbe= plot(lowMarshTbl_Eh, "TIMESTAMP", vars);
+    for k = 1:numel(hProbe)
+        hProbe(k).DisplayName = string(vars(k));
+    end
+    for k = 1:numel(hProbe) 
+        hProbe(k).LineWidth = widths(k); 
+    end
     ylabel('Eh(mV)');
     xlabel('Date Time');
     legend(hProbe, 'Location', 'best');
     ax.Toolbar.Visible = 'on';
+    xlim([startDate endDate]);
+    % Plot references
+    % vars = allVars(contains(allVars, "reference") & ~contains(allVars,"reference07"));  
+    % fig_ref = plot(lowMarshTbl_Eh, "TIMESTAMP",vars,"Color","k");
+    % for k = 1:numel(fig_ref)
+    %     fig_ref(k).DisplayName = string(vars(k));
+    % end
     hold off;
+    savefig(gcf,strcat("results\LowMarshProbe",probes(f),".fig"));
+ end
+%%
+ % create a tiled figure
+figure;
+tcl = tiledlayout(3,3);
+for i =2:numel(figs)
+ax = figs(i).CurrentAxes;
+ax.Parent = tcl;
+ax.Layout.Tile = i;
 end
+ 
 % figure(f);
 % vars = allVars( contains(allVars,"L07") & contains(allVars,"Eh") );
 % ax = gca;
@@ -832,5 +873,5 @@ hold off;
 %[appendix]{"version":"1.0"}
 %---
 %[metadata:view]
-%   data: {"layout":"onright","rightPanelPercent":28.2}
+%   data: {"layout":"onright","rightPanelPercent":29.2}
 %---
