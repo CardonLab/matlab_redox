@@ -20,8 +20,11 @@ newNames = {'soil1_c','soil2_c','_05cm','_10cm','_15cm','_30cm'};
 df_logger.Properties.VariableNames = replace(varNames,oldNames,newNames);
 vars = df_logger.Properties.VariableNames;
 
+% Set LaTeX interpreter off so _ are not interpeted as subscrpit
+set(groot,'DefaultLegendInterpreter','none')
+
 % Remove high redox values
-redox_vars = contains(vars, {'cm','reference'});
+redox_vars = contains(vars, {'cm','Ref','Diff'});
 for i = 1:length(vars)
     if redox_vars(i)
         col = df_logger.(vars{i});
@@ -30,7 +33,7 @@ for i = 1:length(vars)
     end
 end
 % Select timestamp and columns containing "Redox"
-redoxCols = contains(df_logger.Properties.VariableNames, {'cm','reference'}, IgnoreCase=true);
+redoxCols = contains(df_logger.Properties.VariableNames, {'cm','Ref'}, IgnoreCase=true);
 selectedData = df_logger(:, [true, redoxCols(2:end)]); % keep timestamp and redox columns
 
 % Convert from wide to long format
@@ -67,6 +70,8 @@ xlim([min(longTimestamp) max(longTimestamp)]);
 xlabel('Date');
 ylabel('mV');
 legend('Location', 'best');
+set(gca, "XGrid", "off", "YGrid", "on")
+title(strrep(dat_file,"_","\_"))
 hold off;
 
 %  Plot5 cm probes 
@@ -93,23 +98,26 @@ for i = 1:length(varNames)
 end
 
 % Plot
-figure;
-hold on;
-keys = unique(longKey);
-colors = lines(length(keys));
+if ~isempty(longKey)
+    figure;
+    hold on;
+    keys = unique(longKey);
+    colors = lines(length(keys));
 
-for i = 1:length(keys)
-    idx = strcmp(longKey, keys{i});
-    plot(longTimestamp(idx), longValue(idx), 'Color', colors(i,:), 'DisplayName', keys{i});
+
+    for i = 1:length(keys)    
+        idx = strcmp(longKey, keys{i});
+        plot(longTimestamp(idx), longValue(idx), 'Color', colors(i,:), 'DisplayName', keys{i});
+    end
+
+
+    xlim([min(longTimestamp) max(longTimestamp)]);
+    
+    xlabel('Date');
+    ylabel('mV');
+    legend('Location', 'best');
+    hold off;
 end
-
-xlim([min(longTimestamp) max(longTimestamp)]);
-
-xlabel('Date');
-ylabel('mV');
-legend('Location', 'best');
-hold off;
-
 %  Plot 10 cm probes 
 
 redoxCols = contains(df_logger.Properties.VariableNames, {'10cm'}, IgnoreCase=true);
@@ -134,19 +142,22 @@ for i = 1:length(varNames)
 end
 
 % Plot
-figure;
-hold on;
-keys = unique(longKey);
-colors = lines(length(keys));
+if ~isempty(longKey)
+    figure;
+    hold on;
+    keys = unique(longKey);
+    colors = lines(length(keys));
 
-for i = 1:length(keys)
-    idx = strcmp(longKey, keys{i});
-    plot(longTimestamp(idx), longValue(idx), 'Color', colors(i,:), 'DisplayName', keys{i});
+
+    for i = 1:length(keys)
+        idx = strcmp(longKey, keys{i});
+        plot(longTimestamp(idx), longValue(idx), 'Color', colors(i,:), 'DisplayName', keys{i});
+    end
+
+    xlim([min(longTimestamp) max(longTimestamp)]);
+    
+    xlabel('Date');
+    ylabel('mV');
+    legend('Location', 'best');
+    hold off;
 end
-
-xlim([min(longTimestamp) max(longTimestamp)]);
-
-xlabel('Date');
-ylabel('mV');
-legend('Location', 'best');
-hold off;
