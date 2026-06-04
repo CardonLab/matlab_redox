@@ -28,7 +28,7 @@ redox_vars = contains(vars, {'cm','Ref','Diff'});
 for i = 1:length(vars)
     if redox_vars(i)
         col = df_logger.(vars{i});
-        col(col > 5) = NaN;
+        col(col > 250) = NaN;
         df_logger.(vars{i}) = col;
     end
 end
