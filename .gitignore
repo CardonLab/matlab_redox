@@ -2,3 +2,5 @@ resources/
 *.xml
 *.asv
 /results
+/report
+/results
