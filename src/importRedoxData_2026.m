@@ -1,10 +1,33 @@
 %[text] ## Low and high marsh redox 1 and 5 minute data
-% Project paths, resolved from this file's location so the script runs from any folder
+% Project paths, resolved from this file's location so the script runs from any folder.
+% mfilename is unreliable in the Live Editor: the script is evaluated through a
+% temporary helper file, so it returns "" or a ...\LiveEditorEvaluationHelperE* path.
+% Fall back to the active editor document, then to searching upward from pwd.
 scriptFile = mfilename("fullpath");
-if isempty(scriptFile) % e.g. code pasted into the command window
-    projectRoot = pwd;
-else
-    projectRoot = fileparts(fileparts(scriptFile)); % src\..
+if isempty(scriptFile) || contains(scriptFile,"LiveEditorEvaluationHelper")
+    try
+        scriptFile = matlab.desktop.editor.getActiveFilename; % Live Editor / Editor
+    catch
+        scriptFile = ''; % no document open, e.g. code pasted into the command window
+    end
+end
+
+projectRoot = "";
+if ~isempty(scriptFile)
+    projectRoot = string(fileparts(fileparts(scriptFile))); % src\..
+end
+if projectRoot == "" || ~isfolder(fullfile(projectRoot,"data"))
+    % Last resort: walk up from the current folder looking for the project layout
+    candidate = string(pwd);
+    while ~(isfolder(fullfile(candidate,"data")) && isfolder(fullfile(candidate,"src")))
+        parent = string(fileparts(candidate));
+        if parent == candidate % reached the drive root without a match
+            error("importRedoxData_2026:projectRootNotFound", ...
+                "Could not locate the project root. cd to the matlab_redox folder and rerun.");
+        end
+        candidate = parent;
+    end
+    projectRoot = candidate;
 end
 folder_path = fullfile(projectRoot,"data");       % logger data files
 resultsFolder = fullfile(projectRoot,"results");  % saved .mat files
