@@ -1,6 +1,13 @@
 %[text] ## Low and high marsh redox 1 and 5 minute data
-% Folder of logger data files
-folder_path = "C:\Users\jl01596\OneDrive - Marine Biological Laboratory\Cmarsh\";
+% Project paths, resolved from this file's location so the script runs from any folder
+scriptFile = mfilename("fullpath");
+if isempty(scriptFile) % e.g. code pasted into the command window
+    projectRoot = pwd;
+else
+    projectRoot = fileparts(fileparts(scriptFile)); % src\..
+end
+folder_path = fullfile(projectRoot,"data");       % logger data files
+resultsFolder = fullfile(projectRoot,"results");  % saved .mat files
 %-----------------------------------------------------------------------------------------
 % low marsh redox data.
 %-----------------------------------------------------------------------------------------
@@ -8,28 +15,14 @@ lowMarshMinuteFile = fullfile(folder_path,"cmarsh_lowmarsh_pheno_redox_1min.dat"
 lowMarsh5MinuteFile = fullfile(folder_path,"cmarsh_lowmarsh_pheno_redox_5min.dat");
 
 % Get 1 minute data
-if exist(lowMarshMinuteFile, 'file') == 2
-    % Load the low marsh minute data
-    lowMarshMinuteTbl = importCSdata(lowMarshMinuteFile);
-else
-    % Prompt user to select the low marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select low marsh minute .dat file');
-    lowMarshMinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
-lowMarshMinuteTbl = removevars(lowMarshMinuteTbl,"RECORD"); % Remove the record 
-lowMarshMinuteTbl = unique(lowMarshMinuteTbl,"rows"); % Remove duplicates
+lowMarshMinuteTbl = loadCSfile(lowMarshMinuteFile,'Select low marsh minute .dat file');
+lowMarshMinuteTbl = removevars(lowMarshMinuteTbl,"RECORD"); % Remove the record
+lowMarshMinuteTbl = dedupTimetable(lowMarshMinuteTbl,"lowMarshMinuteTbl"); % Remove duplicates
 
 % Get 5 minute data
-if exist(lowMarsh5MinuteFile, 'file') == 2
-    % Load the low marsh minute data
-    lowMarsh5MinuteTbl = importCSdata(lowMarsh5MinuteFile);
-else
-    % Prompt user to select the low marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select low marsh 5 minute .dat file');
-    lowMarsh5MinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
-lowMarsh5MinuteTbl = removevars(lowMarsh5MinuteTbl,["RECORD","PTemp_C_Avg"]); % Remove the record 
-lowMarsh5MinuteTbl = unique(lowMarsh5MinuteTbl,"rows"); % Remove duplicates
+lowMarsh5MinuteTbl = loadCSfile(lowMarsh5MinuteFile,'Select low marsh 5 minute .dat file');
+lowMarsh5MinuteTbl = removevars(lowMarsh5MinuteTbl,["RECORD","PTemp_C_Avg"]); % Remove the record
+lowMarsh5MinuteTbl = dedupTimetable(lowMarsh5MinuteTbl,"lowMarsh5MinuteTbl"); % Remove duplicates
 %-------------------------------------------------------------------------------%
 % Correct reference base using the spare references
 %-------------------------------------------------------------------------------%
@@ -88,8 +81,8 @@ vars = vars(~contains(vars,newBaseRef));
 lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
 
 % Save files
-save("results\lowMarshMinuteTbl.mat","lowMarshMinuteTbl")
-save("results\lowMarsh5MinuteTbl.mat","lowMarsh5MinuteTbl")
+save(fullfile(resultsFolder,"lowMarshMinuteTbl.mat"),"lowMarshMinuteTbl")
+save(fullfile(resultsFolder,"lowMarsh5MinuteTbl.mat"),"lowMarsh5MinuteTbl")
 
 %---------------------------------------------------------------------------------
 % Get high marsh redox 1 and 5 minute data 
@@ -98,32 +91,18 @@ highMarshMinuteFile = fullfile(folder_path,"cmarsh_highmarsh_redox_1min.dat");
 highMarsh5MinuteFile = fullfile(folder_path,"cmarsh_highmarsh_redox_5min.dat");
 
 % Get 1 minute data
-if exist(highMarshMinuteFile, 'file') == 2
-    % Load the high marsh minute data
-    highMarshMinuteTbl = importCSdata(highMarshMinuteFile);
-else
-    % Prompt user to select the high marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select high marsh minute .dat file');
-    highMarshMinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
-highMarshMinuteTbl = removevars(highMarshMinuteTbl,"RECORD"); % Remove the record 
-highMarshMinuteTbl = unique(highMarshMinuteTbl,"rows"); % Remove duplicates
+highMarshMinuteTbl = loadCSfile(highMarshMinuteFile,'Select high marsh minute .dat file');
+highMarshMinuteTbl = removevars(highMarshMinuteTbl,"RECORD"); % Remove the record
+highMarshMinuteTbl = dedupTimetable(highMarshMinuteTbl,"highMarshMinuteTbl"); % Remove duplicates
 
 % Get 5 minute data
-if exist(highMarsh5MinuteFile, 'file') == 2
-    % Load the high marsh minute data
-    highMarsh5MinuteTbl = importCSdata(highMarsh5MinuteFile);
-else
-    % Prompt user to select the high marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select high marsh 5 minute .dat file');
-    highMarsh5MinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
-highMarsh5MinuteTbl = removevars(highMarsh5MinuteTbl,["RECORD","PTemp_C_Avg"]); % Remove the record 
-highMarsh5MinuteTbl = unique(highMarsh5MinuteTbl,"rows"); % Remove duplicates
+highMarsh5MinuteTbl = loadCSfile(highMarsh5MinuteFile,'Select high marsh 5 minute .dat file');
+highMarsh5MinuteTbl = removevars(highMarsh5MinuteTbl,["RECORD","PTemp_C_Avg"]); % Remove the record
+highMarsh5MinuteTbl = dedupTimetable(highMarsh5MinuteTbl,"highMarsh5MinuteTbl"); % Remove duplicates
 
 % Save files
-save("results\highMarshMinuteTbl.mat","highMarshMinuteTbl")
-save("results\highMarsh5MinuteTbl.mat","highMarsh5MinuteTbl")
+save(fullfile(resultsFolder,"highMarshMinuteTbl.mat"),"highMarshMinuteTbl")
+save(fullfile(resultsFolder,"highMarsh5MinuteTbl.mat"),"highMarsh5MinuteTbl")
 
 %---------------------------------------------------------------------------------
 % Get Typha marsh redox 1 and 5 minute data 
@@ -133,23 +112,9 @@ typhaMarsh5MinuteFile = fullfile(folder_path,"cmarsh_typha_redox_5minute.dat");
 typhaMarshMinuteFileBkup = fullfile(folder_path,"cmarsh_typha_redox_1minute.dat.backup");
 typhaMarsh5MinuteFileBkup = fullfile(folder_path,"cmarsh_typha_redox_5minute.dat.backup");
 % Get 1 minute data
-if exist(typhaMarshMinuteFile, 'file') == 2
-    % Load the Typha marsh minute data
-    typhaMarshMinuteTbl = importCSdata(typhaMarshMinuteFile);    
-else
-    % Prompt user to select the typha marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select typha marsh minute .dat file');
-    typhaMarshMinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
+typhaMarshMinuteTbl = loadCSfile(typhaMarshMinuteFile,'Select typha marsh minute .dat file');
 % Get 1 minute backup data
-if exist(typhaMarshMinuteFileBkup, 'file') == 2
-    % Load the Typha marsh minute data
-    typhaMarshMinuteTblBkup = importCSdata(typhaMarshMinuteFileBkup);    
-else
-    % Prompt user to select the typha marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat.backup', 'Select typha marsh minute .dat file');
-    typhaMarshMinuteTblBkup = importCSdata(fullfile(dat_path, dat_file));
-end
+typhaMarshMinuteTblBkup = loadCSfile(typhaMarshMinuteFileBkup,'Select typha marsh minute .dat.backup file');
 
 % Rename variables in the earlier .backup file.
 varNames = typhaMarshMinuteTblBkup.Properties.VariableNames;
@@ -177,29 +142,12 @@ typhaMarshMinuteTblBkup.Properties.VariableNames = newVarNames;
 typhaMarshMinuteTbl = [typhaMarshMinuteTblBkup; typhaMarshMinuteTbl];
 
 typhaMarshMinuteTbl = removevars(typhaMarshMinuteTbl,"RECORD"); % Remove the record variable
-typhaMarshMinuteTbl = unique(typhaMarshMinuteTbl,"rows"); % Remove duplicates
+typhaMarshMinuteTbl = dedupTimetable(typhaMarshMinuteTbl,"typhaMarshMinuteTbl"); % Remove duplicates
 
 % Get 5 minute data
-
-if exist(typhaMarsh5MinuteFile, 'file') == 2
-    % Load the typha marsh minute data
-    typhaMarsh5MinuteTbl = importCSdata(typhaMarsh5MinuteFile);
-else
-    % Prompt user to select the typha marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat', 'Select typha marsh 5 minute .dat file');
-    typhaMarsh5MinuteTbl = importCSdata(fullfile(dat_path, dat_file));
-end
-
+typhaMarsh5MinuteTbl = loadCSfile(typhaMarsh5MinuteFile,'Select typha marsh 5 minute .dat file');
 % Get 5 minute backup data
-
-if exist(typhaMarsh5MinuteFileBkup, 'file') == 2
-    % Load the Typha marsh minute data
-    typhaMarsh5MinuteTblBkup = importCSdata(typhaMarsh5MinuteFileBkup);    
-else
-    % Prompt user to select the typha marsh minute data file
-    [dat_file, dat_path] = uigetfile('*.dat.backup', 'Select typha marsh minute .dat file');
-    typhaMarsh5MinuteTblBkup = importCSdata(fullfile(dat_path, dat_file));
-end
+typhaMarsh5MinuteTblBkup = loadCSfile(typhaMarsh5MinuteFileBkup,'Select typha marsh 5 minute .dat.backup file');
 
 % Rename variables in the earlier .backup file.
 varNames = typhaMarsh5MinuteTblBkup.Properties.VariableNames;
@@ -226,12 +174,12 @@ typhaMarsh5MinuteTblBkup.Properties.VariableNames = newVarNames;
 % Merge the backup with the current file
 typhaMarsh5MinuteTbl = [typhaMarsh5MinuteTblBkup; typhaMarsh5MinuteTbl];
 
-typhaMarsh5MinuteTbl = removevars(typhaMarsh5MinuteTbl,"RECORD"); % Remove the record 
-typhaMarsh5MinuteTbl = unique(typhaMarsh5MinuteTbl,"rows"); % Remove duplicates
+typhaMarsh5MinuteTbl = removevars(typhaMarsh5MinuteTbl,"RECORD"); % Remove the record
+typhaMarsh5MinuteTbl = dedupTimetable(typhaMarsh5MinuteTbl,"typhaMarsh5MinuteTbl"); % Remove duplicates
 
 % Save files
-save("results\typhaMarshMinuteTbl.mat","typhaMarshMinuteTbl")
-save("results\typhaMarsh5MinuteTbl.mat","typhaMarsh5MinuteTbl")
+save(fullfile(resultsFolder,"typhaMarshMinuteTbl.mat"),"typhaMarshMinuteTbl")
+save(fullfile(resultsFolder,"typhaMarsh5MinuteTbl.mat"),"typhaMarsh5MinuteTbl")
 
 %%
 %[text] ## Eh Temperature correction: it's miniscule compared to the variations we see. Eh (mV) = ORP (mV) - 0.718\*T + 224.41
@@ -249,8 +197,8 @@ highMarsh5MinuteTblEh = mV2Eh(highMarsh5MinuteTbl,vars,highMarsh5MinuteTbl.avgSo
 highMarsh5MinuteTbl_Eh = [highMarsh5MinuteTbl,highMarsh5MinuteTblEh];
 
 % Save files
-save("results\highMarshMinuteTbl_Eh.mat","highMarshMinuteTbl_Eh")
-save("results\highMarsh5MinuteTbl_Eh.mat","highMarsh5MinuteTbl_Eh")
+save(fullfile(resultsFolder,"highMarshMinuteTbl_Eh.mat"),"highMarshMinuteTbl_Eh")
+save(fullfile(resultsFolder,"highMarsh5MinuteTbl_Eh.mat"),"highMarsh5MinuteTbl_Eh")
 
 % Low Marsh
 % % Adjust reference base if necessary
@@ -273,8 +221,11 @@ save("results\highMarsh5MinuteTbl_Eh.mat","highMarsh5MinuteTbl_Eh")
 
 % Average the two soil temperatures
 lowMarsh5MinuteTbl.avgSoilTemp = (lowMarsh5MinuteTbl.Soil_C_1_Avg + lowMarsh5MinuteTbl.Soil_C_2_Avg)/2;
-% Low marsh minute data did not have the soil values
-lowMarshMinuteTbl = synchronize(lowMarshMinuteTbl,lowMarsh5MinuteTbl(:,"avgSoilTemp"), 'union', 'linear');
+% Low marsh minute data did not have the soil values. Use 'first' so the 1 minute
+% row times are kept and only avgSoilTemp is interpolated onto them; 'union' would
+% add the 5 minute times as extra rows and interpolate every redox column too.
+lowMarshMinuteTbl = synchronize(lowMarshMinuteTbl,lowMarsh5MinuteTbl(:,"avgSoilTemp"), ...
+    'first','linear','EndValues','extrap');
 
 vars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"cm"));
 lowMarshEh = mV2Eh(lowMarshMinuteTbl,vars,lowMarshMinuteTbl.avgSoilTemp);
@@ -285,8 +236,8 @@ lowMarsh5MinuteEh = mV2Eh(lowMarsh5MinuteTbl,vars,lowMarsh5MinuteTbl.avgSoilTemp
 lowMarsh5MinuteTbl_Eh = [lowMarsh5MinuteTbl,lowMarsh5MinuteEh];
 
  % Save files
- save("results\lowMarshMinuteTbl_Eh.mat","lowMarshMinuteTbl_Eh")
- save("results\lowMarsh5MinuteTbl_Eh.mat","lowMarsh5MinuteTbl_Eh")
+ save(fullfile(resultsFolder,"lowMarshMinuteTbl_Eh.mat"),"lowMarshMinuteTbl_Eh")
+ save(fullfile(resultsFolder,"lowMarsh5MinuteTbl_Eh.mat"),"lowMarsh5MinuteTbl_Eh")
 
  % Typha Marsh Redox
 
@@ -299,24 +250,24 @@ lowMarsh5MinuteTbl_Eh = [lowMarsh5MinuteTbl,lowMarsh5MinuteEh];
 
  % Apply each probe's temperature to the correction 
  varNames = typhaMarshMinuteTbl.Properties.VariableNames;
- vars = varNames( contains(varNames,'P1') & contains(varNames,'cm') ); 
- typhaMarsh1Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P1_Soil_Temp_C);
+ vars = varNames( contains(varNames,'P1') & contains(varNames,'cm') );
+ typhaMinuteP1Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P1_Soil_Temp_C);
  % Probe 2
- vars = varNames( contains(varNames,'P2') & contains(varNames,'cm') ); 
- typhaMarsh5Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P2_Soil_Temp_C);
- typhaMarshMinuteTbl_Eh = [typhaMarshMinuteTbl,[typhaMarsh1Eh, typhaMarsh5Eh]];
+ vars = varNames( contains(varNames,'P2') & contains(varNames,'cm') );
+ typhaMinuteP2Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P2_Soil_Temp_C);
+ typhaMarshMinuteTbl_Eh = [typhaMarshMinuteTbl,[typhaMinuteP1Eh, typhaMinuteP2Eh]];
  % 5 minute data
  varNames = typhaMarsh5MinuteTbl.Properties.VariableNames;
- vars = varNames( contains(varNames,'P1') & contains(varNames,'cm') ); 
- typhaMarshEh = mV2Eh(typhaMarsh5MinuteTbl,vars,typhaMarsh5MinuteTbl.P1_Soil_Temp_C);
- typhaMarsh5MinuteTbl_Eh = [typhaMarsh5MinuteTbl,typhaMarshEh];
- vars = varNames( contains(varNames,'P2') & contains(varNames,'cm') ); 
- typhaMarshEh = mV2Eh(typhaMarsh5MinuteTbl,vars,typhaMarsh5MinuteTbl.P2_Soil_Temp_C);
- typhaMarsh5MinuteTbl_Eh = [typhaMarsh5MinuteTbl,typhaMarshEh];
+ vars = varNames( contains(varNames,'P1') & contains(varNames,'cm') );
+ typha5MinuteP1Eh = mV2Eh(typhaMarsh5MinuteTbl,vars,typhaMarsh5MinuteTbl.P1_Soil_Temp_C);
+ % Probe 2
+ vars = varNames( contains(varNames,'P2') & contains(varNames,'cm') );
+ typha5MinuteP2Eh = mV2Eh(typhaMarsh5MinuteTbl,vars,typhaMarsh5MinuteTbl.P2_Soil_Temp_C);
+ typhaMarsh5MinuteTbl_Eh = [typhaMarsh5MinuteTbl,[typha5MinuteP1Eh, typha5MinuteP2Eh]];
 
  % Save files
- save("results\typhaMarshMinuteTbl_Eh.mat","typhaMarshMinuteTbl_Eh")
- save("results\typhaMarsh5MinuteTbl_Eh.mat","typhaMarsh5MinuteTbl_Eh")
+ save(fullfile(resultsFolder,"typhaMarshMinuteTbl_Eh.mat"),"typhaMarshMinuteTbl_Eh")
+ save(fullfile(resultsFolder,"typhaMarsh5MinuteTbl_Eh.mat"),"typhaMarsh5MinuteTbl_Eh")
 
 
 %[appendix]{"version":"1.0"}
