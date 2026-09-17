@@ -24,10 +24,13 @@ end
 resultsFolder = fullfile(projectRoot,"results");
 
 %% Analysis parameters
-varName   = "P2_10cmEh";   % logger label; true depth 5 cm (see plot_Typha_redox.m rename)
-depthLabel = "5 cm";
-startDate = datetime("2026-08-01 00:00:00","TimeZone","-05:00");
-endDate   = datetime("2026-08-29 00:00:00","TimeZone","-05:00");
+% P1 channel labels are NOT offset from installed depth (unlike P2, where
+% plot_Typha_redox.m renames P2_10cm -> P2_05cm etc.), so P1_10cmEh is the 10 cm sensor.
+varName   = "P1_10cmEh";
+depthLabel = "10 cm";
+startDate = datetime("2026-07-15 00:00:00","TimeZone","-05:00");
+% The end of the window is taken from the data, not hardcoded: the .mat is rebuilt
+% as new logger data arrives, so the last timestamp moves. Set below, after the load.
 
 periodLimits    = [minutes(30) days(8)]; % resolvable band of interest
 voicesPerOctave = 12;                    % scale resolution
@@ -36,9 +39,11 @@ nSurrogates     = 100;                   % AR(1) surrogates for the 95% signific
                                          % set to 0 to skip the significance test
 saveWaveletMat  = false;                 % the full CWT is ~75 MB; off by default
 
-% Reference periods drawn on the scalogram
-refPeriods = [hours(12.4206) hours(23.9345) hours(6.2103)];
-refLabels  = ["M2 12.42 h" "K1 23.93 h" "M4 6.21 h"];
+% Reference periods drawn on the scalogram. The diurnal line is labelled generically
+% because K1 (23.9345 h) and S1 (24.0000 h) are inseparable over any record of this
+% length, so a diurnal peak cannot be assigned a lunar or solar origin here.
+refPeriods = [hours(12.4206) hours(24) hours(6.2103)];
+refLabels  = ["M2 12.42 h" "diurnal ~24 h" "M4 6.21 h"];
 
 %% Load and extract the channel
 load(fullfile(resultsFolder,"typhaMarshMinuteTbl_Eh.mat"),"typhaMarshMinuteTbl_Eh");
@@ -48,6 +53,10 @@ if ~ismember(varName,string(T.Properties.VariableNames))
         "%s is not a variable in typhaMarshMinuteTbl_Eh. Available: %s", ...
         varName, strjoin(string(T.Properties.VariableNames),", "));
 end
+
+% timerange is half-open, so extend one sample past the last timestamp to include it
+dataEnd = max(T.Properties.RowTimes);
+endDate = dataEnd + minutes(1);
 
 W = T(timerange(startDate,endDate), varName);
 if isempty(W)
@@ -95,10 +104,23 @@ if nSurrogates > 0
     r = corr(x(1:end-1),x(2:end));            % lag-1 autocorrelation
     sd = std(x);
     innov = sd*sqrt(1-r^2);
+    % innov is set so the AR(1) has stationary variance sd^2 - the standard
+    % normalisation. At 1-minute sampling r is ~0.99997, so the decorrelation time
+    % (~500 h) is only ~1/3 of the record and each surrogate is close to a random walk.
+    % Its *sample* sd therefore comes out well below sd (the series wanders coherently,
+    % so the sample mean absorbs the low-frequency power). That is a property of the
+    % null, not a calibration error: the data are a length-n realization too, so
+    % comparing them with surrogates generated identically is the correct test. Do NOT
+    % rescale the surrogates to the data's sample sd - that forces the null to absorb
+    % the record's genuine excess low-frequency variance and then spreads it to all
+    % periods, inflating the level where no red noise should reach.
+    % The surrogates ARE detrended like the data, so the two pipelines match.
     surrSpec = nan(numel(period),nSurrogates);
-    fprintf("  AR(1) surrogates (r = %.4f): ",r);
+    surrSd   = nan(nSurrogates,1);
+    fprintf("  AR(1) surrogates (r = %.6f, decorrelation %.0f h): ",r,(1/(1-r))/60);
     for k = 1:nSurrogates
-        xs = filter(1,[1 -r],innov*randn(numel(x),1));
+        xs = detrend(filter(1,[1 -r],innov*randn(numel(x),1)),1);
+        surrSd(k) = std(xs);
         wts = cwt(xs,'amor',dtNominal, ...
             VoicesPerOctave=voicesPerOctave, PeriodLimits=periodLimits);
         as = abs(wts);
@@ -107,6 +129,9 @@ if nSurrogates > 0
         if mod(k,10)==0, fprintf("%d ",k); end
     end
     fprintf("done\n");
+    fprintf("    data sample sd = %.3f mV; surrogate sample sd = %.3f mV\n",sd,mean(surrSd));
+    fprintf("    (surrogates run lower by construction; the excess is the record's own\n");
+    fprintf("     low-frequency variance, which an AR(1) with this r cannot reproduce)\n");
     sigLevel = prctile(surrSpec,95,2);        % 95% level against red noise
 end
 
@@ -194,14 +219,19 @@ for k = 1:min(5,numel(pk))
     flag = "";
     if ~isempty(sigLevel)
         idxFull = find(periodHours == pv(loc(k)),1);
-        if globalSpec(idxFull) > sigLevel(idxFull), flag = "  *above 95% red-noise level"; end
+        ratio = globalSpec(idxFull)/sigLevel(idxFull);
+        if ratio > 1
+            flag = sprintf("  %.2fx the 95%% red-noise level  *significant",ratio);
+        else
+            flag = sprintf("  %.2fx the 95%% red-noise level (not significant)",ratio);
+        end
     end
     fprintf("  %7.2f h   |CWT| = %6.2f mV%s\n",pv(loc(k)),pk(k),flag);
 end
 
 %% Save
 if ~isfolder(resultsFolder), mkdir(resultsFolder); end
-stamp = sprintf("%s_%s_%s",varName,string(startDate,"yyyyMMdd"),string(endDate,"yyyyMMdd"));
+stamp = sprintf("%s_%s_%s",varName,string(startDate,"yyyyMMdd"),string(dataEnd,"yyyyMMdd"));
 savefig(fig1,fullfile(resultsFolder,"wavelet_"+stamp+".fig"));
 exportgraphics(fig1,fullfile(resultsFolder,"wavelet_"+stamp+".png"),Resolution=150);
 exportgraphics(fig2,fullfile(resultsFolder,"waveletGlobal_"+stamp+".png"),Resolution=150);
