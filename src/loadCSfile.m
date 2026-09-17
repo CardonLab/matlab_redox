@@ -4,7 +4,7 @@ function tbl = loadCSfile(filename,prompt)
 %   is prompted with PROMPT and the file filter is taken from FILENAME's own
 %   extension, so .dat and .dat.backup both work. Cancelling the dialog raises
 %   an error instead of passing uigetfile's 0 return on to fullfile.
-    if exist(filename,'file') == 2
+    if isfile(filename)
         tbl = importCSdata(filename);
         return
     end
