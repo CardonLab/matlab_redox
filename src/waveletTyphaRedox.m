@@ -41,6 +41,7 @@ startDate = datetime("2026-07-15 00:00:00","TimeZone","-05:00");
 periodLimits    = [minutes(30) days(20)]; % resolvable band of interest
 voicesPerOctave = 12;                     % scale resolution
 tidalBand       = [hours(11) hours(14)];  % M2 band for scale-averaged power
+diurnalBand     = [hours(20) hours(28)];  % diurnal band for scale-averaged power
 springNeapBand  = [days(13) days(17)];    % Msf band for scale-averaged power
 msfPeriod       = days(14.765);           % spring-neap (Msf) period
 nSurrogates     = 100;                   % AR(1) surrogates for the 95% significance level
@@ -148,6 +149,29 @@ end
 bandIdx   = period >= tidalBand(1) & period <= tidalBand(2);
 bandAmp   = mean(ampMasked(bandIdx,:),1,"omitnan").';
 
+%% Scale-averaged amplitude in the diurnal band
+% Plotted alongside the tidal band because the contrast between the two is the
+% clearest result in this record: the diurnal oscillation is present continuously,
+% while the semidiurnal band is quiet with isolated bursts. mean/median and the
+% fraction of time well above the median quantify that difference in character.
+% Note that "continuous" is not "stationary": the diurnal amplitude can still trend
+% over a record, so read the panel as well as these summary numbers.
+diurnalIdx = period >= diurnalBand(1) & period <= diurnalBand(2);
+diurnalAmp = mean(ampMasked(diurnalIdx,:),1,"omitnan").';
+fprintf("\nScale-averaged amplitude by band (within the cone of influence):\n");
+for bb = ["diurnal" "semidiurnal"]
+    if bb == "diurnal"
+        aB = diurnalAmp; lo = hours(diurnalBand(1)); hi = hours(diurnalBand(2));
+    else
+        aB = bandAmp;    lo = hours(tidalBand(1));   hi = hours(tidalBand(2));
+    end
+    med = median(aB,"omitnan");
+    fprintf("  %-12s %4.4g-%.4g h: mean %.3f, median %.3f, max %.3f mV; " + ...
+        "max/median %.1f; %.1f%% of the record above 2x median\n", ...
+        bb, lo, hi, mean(aB,"omitnan"), med, max(aB), max(aB)/med, ...
+        100*sum(aB > 2*med)/sum(~isnan(aB)));
+end
+
 %% Spring-neap band
 % A spring-neap signal would appear as a ~14.77 d modulation. Report how much of the
 % record actually supports that period once the cone of influence is applied, because
@@ -179,9 +203,9 @@ else
     fprintf("  global spectrum at Msf: %.3f mV (no significance test run)\n",globalSpec(iMsf));
 end
 
-%% Figure 1 - series, scalogram, tidal-band amplitude
-fig1 = figure(Position=[80 80 1180 900], Color="w");
-tl = tiledlayout(fig1,3,1,TileSpacing="compact",Padding="compact");
+%% Figure 1 - series, scalogram, diurnal-band and tidal-band amplitude
+fig1 = figure(Position=[80 80 1180 1080], Color="w");
+tl = tiledlayout(fig1,4,1,TileSpacing="compact",Padding="compact");
 
 ax1 = nexttile(tl);
 plot(ax1,t,xRaw,LineWidth=0.75,Color=[0 0.35 0.7]);
@@ -225,36 +249,48 @@ ylabel(ax2,"Period (hours)");
 ylim(ax2,[min(periodHours) max(periodHours)]);
 title(ax2,"Morlet scalogram (shaded = outside cone of influence)");
 
+% Diurnal and tidal bands share the panel style but NOT the y-axis: the diurnal
+% amplitude is several times the semidiurnal one, so a common scale would flatten the
+% tidal panel. The titles carry mean and median so the difference in character -
+% continuous versus bursty - is readable without comparing axis heights.
 ax3 = nexttile(tl);
-plot(ax3,t,bandAmp,LineWidth=1.3,Color=[0.75 0.1 0.1]);
-ylabel(ax3,sprintf("|CWT| %g-%g h (mV)",hours(tidalBand(1)),hours(tidalBand(2))));
-title(ax3,"Scale-averaged amplitude in the M2 tidal band");
+plot(ax3,t,diurnalAmp,LineWidth=1.3,Color=[0.85 0.5 0.05]);
+ylabel(ax3,sprintf("|CWT| %g-%g h (mV)",hours(diurnalBand(1)),hours(diurnalBand(2))));
+title(ax3,sprintf("Scale-averaged amplitude in the diurnal band (mean %.3f, median %.3f mV)", ...
+    mean(diurnalAmp,"omitnan"),median(diurnalAmp,"omitnan")));
 grid(ax3,"on"); box(ax3,"on");
-xlabel(ax3,"Date");
 
-linkaxes([ax1 ax2 ax3],"x");
+ax4 = nexttile(tl);
+plot(ax4,t,bandAmp,LineWidth=1.3,Color=[0.75 0.1 0.1]);
+ylabel(ax4,sprintf("|CWT| %g-%g h (mV)",hours(tidalBand(1)),hours(tidalBand(2))));
+title(ax4,sprintf("Scale-averaged amplitude in the M2 tidal band (mean %.3f, median %.3f mV)", ...
+    mean(bandAmp,"omitnan"),median(bandAmp,"omitnan")));
+grid(ax4,"on"); box(ax4,"on");
+xlabel(ax4,"Date");
+
+linkaxes([ax1 ax2 ax3 ax4],"x");
 xlim(ax1,[min(t) max(t)]);
 
 %% Figure 2 - global wavelet spectrum
 fig2 = figure(Position=[120 120 760 620], Color="w");
-ax4 = axes(fig2);
-plot(ax4,globalSpec,periodHours,LineWidth=1.6,Color=[0 0.35 0.7], ...
+ax5 = axes(fig2);
+plot(ax5,globalSpec,periodHours,LineWidth=1.6,Color=[0 0.35 0.7], ...
     DisplayName="Time-averaged |CWT|");
-hold(ax4,"on");
+hold(ax5,"on");
 if ~isempty(sigLevel)
-    plot(ax4,sigLevel,periodHours,"--",LineWidth=1.3,Color=[0.6 0.6 0.6], ...
+    plot(ax5,sigLevel,periodHours,"--",LineWidth=1.3,Color=[0.6 0.6 0.6], ...
         DisplayName="95% vs AR(1) red noise");
 end
 for k = 1:numel(refPeriods)
-    yline(ax4,hours(refPeriods(k)),":",refLabels(k), ...
+    yline(ax5,hours(refPeriods(k)),":",refLabels(k), ...
         Color=[0.2 0.2 0.2],LabelHorizontalAlignment="right",HandleVisibility="off");
 end
-hold(ax4,"off");
-set(ax4,YScale="log",XScale="log");
-ylabel(ax4,"Period (hours)"); xlabel(ax4,"Time-averaged |CWT| (mV)");
-ylim(ax4,[min(periodHours) max(periodHours)]);
-title(ax4,sprintf("Global wavelet spectrum - %s (%s)",varName,depthLabel),Interpreter="none");
-legend(ax4,Location="southeast"); grid(ax4,"on"); box(ax4,"on");
+hold(ax5,"off");
+set(ax5,YScale="log",XScale="log");
+ylabel(ax5,"Period (hours)"); xlabel(ax5,"Time-averaged |CWT| (mV)");
+ylim(ax5,[min(periodHours) max(periodHours)]);
+title(ax5,sprintf("Global wavelet spectrum - %s (%s)",varName,depthLabel),Interpreter="none");
+legend(ax5,Location="southeast"); grid(ax5,"on"); box(ax5,"on");
 
 %% Report the dominant periods
 valid = ~isnan(globalSpec);
@@ -301,6 +337,7 @@ waveletSummary = struct( ...
     "startDate",startDate,"endDate",endDate, ...
     "period",period,"globalSpec",globalSpec,"sigLevel",sigLevel, ...
     "tidalBand",tidalBand,"time",t,"bandAmp",bandAmp, ...
+    "diurnalBand",diurnalBand,"diurnalAmp",diurnalAmp, ...
     "springNeapBand",springNeapBand,"msfPeriod",msfPeriod,"snAmp",snAmp, ...
     "springNeapCoverage",springNeapCoverage, ...
     "nSurrogates",nSurrogates,"nInterpolated",nFilled);
