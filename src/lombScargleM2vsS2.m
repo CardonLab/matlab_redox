@@ -28,10 +28,15 @@ resultsFolder = fullfile(projectRoot,"results");
 
 %% Parameters
 % P1 channel labels are NOT offset from installed depth (unlike P2, where
-% plot_Typha_redox.m renames P2_10cm -> P2_05cm etc.), so P1_10cmEh is the 10 cm sensor.
-varName    = "P1_10cmEh";
-depthLabel = "10 cm";
-startDate  = datetime("2026-07-15 00:00:00","TimeZone","-05:00");
+% plot_Typha_redox.m renames P2_10cm -> P2_05cm etc.), so P1_10cmEh is the 10 cm
+% sensor while P2_10cmEh is at 5 cm, P2_20cmEh at 15 cm, and so on.
+% These three may be pre-set by a caller - a driver that runs this script over
+% several channels for comparison - in which case the defaults are not applied.
+if ~exist("varName","var"),    varName    = "P1_10cmEh"; end
+if ~exist("depthLabel","var"), depthLabel = "10 cm";     end
+if ~exist("startDate","var")
+    startDate = datetime("2026-07-15 00:00:00","TimeZone","-05:00");
+end
 % The end of the window is taken from the data, not hardcoded: the .mat is rebuilt
 % as new logger data arrives, so the last timestamp moves. Set below, after the load.
 
