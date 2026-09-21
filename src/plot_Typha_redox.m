@@ -1,9 +1,9 @@
-% [dat_file, dat_path] = uigetfile('*.dat', 'Select logger .dat file');
-% full_dat_file = fullfile(dat_path, dat_file);
-% 
-% df_logger = importCSdata(full_dat_file);
+
 
 % Use imported file 
+% Load files if not processed in in current session of matlab
+load("TidesTimetable.mat")
+load("Tidespeaks.mat")
 
 df_logger = typhaMarshMinuteTbl_Eh;
 
