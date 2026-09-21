@@ -3,3 +3,4 @@ resources/
 *.asv
 /results
 /report
+/data
