@@ -20,7 +20,7 @@ newNames = {'soil1_c','soil2_c','_05cm','_10cm','_15cm','_30cm'};
 df_logger.Properties.VariableNames = replace(varNames,oldNames,newNames);
 vars = df_logger.Properties.VariableNames;
 
-% Set LaTeX interpreter off so _ are not interpeted as subscrpit
+% Set LaTeX interpreter off so _ are not interpreted as subscript
 set(groot,'DefaultLegendInterpreter','none')
 
 % Remove high redox values
@@ -58,6 +58,7 @@ end
 figure;
 hold on;
 keys = unique(longKey);
+clear lines
 colors = lines(length(keys));
 
 for i = 1:length(keys)
@@ -73,7 +74,8 @@ legend('Location', 'best');
 set(gca, "XGrid", "off", "YGrid", "on")
 title(strrep(dat_file,"_","\_"))
 hold off;
-
+resultDir = strcat(currentProject().RootFolder,"\results\");
+savefig(gcf,strcat(resultDir,"\TyphaMarshProbe.fig"));
 %  Plot5 cm probes 
 
 redoxCols = contains(df_logger.Properties.VariableNames, {'05cm'}, IgnoreCase=true);

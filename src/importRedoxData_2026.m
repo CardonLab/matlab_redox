@@ -1,4 +1,6 @@
-%[text] ## Low and high marsh redox 1 and 5 minute data
+%[text] ## Import Low, High, and *Typha* marsh redox 1 and 5 minute 2026 data and output a temperature corrected Eh time table.
+%% Set folder and files paths.
+%----------------------------------------------------------------------------------------
 % Project paths, resolved from this file's location so the script runs from any folder.
 % mfilename is unreliable in the Live Editor: the script is evaluated through a
 % temporary helper file, so it returns "" or a ...\LiveEditorEvaluationHelperE* path.
@@ -31,6 +33,12 @@ if projectRoot == "" || ~isfolder(fullfile(projectRoot,"data"))
 end
 folder_path = fullfile(projectRoot,"data");       % logger data files
 resultsFolder = fullfile(projectRoot,"results");  % saved .mat files
+%%
+%[text] #### **Read Low Marsh redox data files and adjust the redox data when the base reference became unstable.** 
+%[text] There where two periods when the base reference is unstable: 
+%[text] - April 14 to May 13 ( base reference was switched May 13). Ref\_06 was used to adjust the data and then was switched to be base.
+%[text] - Aug 10th to when the probes are pulled.   Ref\_06 (base) became unstable. Using Ref\_08 to correct the data.  
+%[text] - Around Aug 24th Ref\_08 becomes unstable \
 %-----------------------------------------------------------------------------------------
 % low marsh redox data.
 %-----------------------------------------------------------------------------------------
@@ -82,7 +90,7 @@ lowMarsh5MinuteTbl.Ref_05_Avg(idx5) = lowMarsh5MinuteTbl.Ref_06_Avg(idx5);
 lowMarsh5MinuteTbl.Ref_06_Avg(idx5) = NaN;
 
 %-------------------------------------------------------------------------------%
-% Base reference started to be unstable 10 Aug) Using Ref_08 as base
+% Base reference started to be unstable 10 Aug. Using Ref_08 as base
 %-------------------------------------------------------------------------------%
 adjustStartDate = datetime("2026-08-10 19:24:00","TimeZone","-05:00");
 adjustEndDate = datetime("2026-11-01 00:00:00","TimeZone","-05:00");
@@ -107,6 +115,8 @@ lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndD
 save(fullfile(resultsFolder,"lowMarshMinuteTbl.mat"),"lowMarshMinuteTbl")
 save(fullfile(resultsFolder,"lowMarsh5MinuteTbl.mat"),"lowMarsh5MinuteTbl")
 
+%%
+%[text] #### Read High Marsh redox one and five minute data files.
 %---------------------------------------------------------------------------------
 % Get high marsh redox 1 and 5 minute data 
 %----------------------------------------------------------------------------------
@@ -127,6 +137,11 @@ highMarsh5MinuteTbl = dedupTimetable(highMarsh5MinuteTbl,"highMarsh5MinuteTbl");
 save(fullfile(resultsFolder,"highMarshMinuteTbl.mat"),"highMarshMinuteTbl")
 save(fullfile(resultsFolder,"highMarsh5MinuteTbl.mat"),"highMarsh5MinuteTbl")
 
+%%
+%[text] #### Read Typha redox minute and five minute files.
+%[text] Probes are SWAP soil Redox probes ORP-40-4-A with redox sensors at 10, 20, 30, and 40 cm and temperature at 29 cm.  Probe 2 was not fully  inserted. Marsh surface is 5 cm from the probe head.  Sensor depths are 5, 15, 25, 35 cm and temperature at 24 cm.
+%[text] Probes deployed near the small-scale ERT at the Typha that's off the deployable boardwalk at the microbial zone of destruction.
+%[text] Early program had the depths backwards.  A custom function, renameVarNames, is use to rename the .backup files, which is the data file created when the program was changed to the correct sensor names. Probe 2 depths were also renamed to the correct depths since there is a 5 cm offset.
 %---------------------------------------------------------------------------------
 % Get Typha marsh redox 1 and 5 minute data 
 %----------------------------------------------------------------------------------
@@ -138,67 +153,59 @@ typhaMarsh5MinuteFileBkup = fullfile(folder_path,"cmarsh_typha_redox_5minute.dat
 typhaMarshMinuteTbl = loadCSfile(typhaMarshMinuteFile,'Select typha marsh minute .dat file');
 % Get 1 minute backup data
 typhaMarshMinuteTblBkup = loadCSfile(typhaMarshMinuteFileBkup,'Select typha marsh minute .dat.backup file');
-
-% Rename variables in the earlier .backup file.
-varNames = typhaMarshMinuteTblBkup.Properties.VariableNames;
-
-% Mapping: _10cm -> _40cm, _20cm -> _30cm, _30cm -> _20cm, _40cm -> _10cm
-newVarNames = varNames; % preallocate
-for i = 1:numel(varNames)
-    name = varNames{i};
-    if contains(name,'_10cm')
-        newVarNames{i} = replace(name,'_10cm','_40cm');
-    elseif contains(name,'_20cm')
-        newVarNames{i} = replace(name,'_20cm','_30cm');
-    elseif contains(name,'_30cm')
-        newVarNames{i} = replace(name,'_30cm','_20cm');
-    elseif contains(name,'_40cm')
-        newVarNames{i} = replace(name,'_40cm','_10cm');
-    elseif contains(name,'Temp')
-        newVarNames{i} = replace(name,'Temp','Soil_Temp');    
-    end
-end
-
-typhaMarshMinuteTblBkup.Properties.VariableNames = newVarNames;
-
-% Merge the backup with the current file
-typhaMarshMinuteTbl = [typhaMarshMinuteTblBkup; typhaMarshMinuteTbl];
-
-typhaMarshMinuteTbl = removevars(typhaMarshMinuteTbl,"RECORD"); % Remove the record variable
-typhaMarshMinuteTbl = dedupTimetable(typhaMarshMinuteTbl,"typhaMarshMinuteTbl"); % Remove duplicates
-
 % Get 5 minute data
 typhaMarsh5MinuteTbl = loadCSfile(typhaMarsh5MinuteFile,'Select typha marsh 5 minute .dat file');
 % Get 5 minute backup data
 typhaMarsh5MinuteTblBkup = loadCSfile(typhaMarsh5MinuteFileBkup,'Select typha marsh 5 minute .dat.backup file');
 
-% Rename variables in the earlier .backup file.
-varNames = typhaMarsh5MinuteTblBkup.Properties.VariableNames;
-
+% Rename variables in the earlier .backup file using custom function in renameVarNames.m.
+% The minute backup file will then match the later minute data file.
 % Mapping: _10cm -> _40cm, _20cm -> _30cm, _30cm -> _20cm, _40cm -> _10cm
-newVarNames = varNames; % preallocate
-for i = 1:numel(varNames)
-    name = varNames{i};
-    if contains(name,'_10cm')
-        newVarNames{i} = replace(name,'_10cm','_40cm_Avg');
-    elseif contains(name,'_20cm')
-        newVarNames{i} = replace(name,'_20cm','_30cm_Avg');
-    elseif contains(name,'_30cm')
-        newVarNames{i} = replace(name,'_30cm','_20cm_Avg');
-    elseif contains(name,'_40cm')
-        newVarNames{i} = replace(name,'_40cm','_10cm_Avg');
-    elseif contains(name,'Temp')
-        newVarNames{i} = replace(name,'_Temp','_Soil_Temp');    
-    end
-end
+replacePairs = [
+    "_10cm", "_40cm"
+    "_20cm", "_30cm"
+    "_30cm", "_20cm"
+    "_40cm", "_10cm"
+    "_Temp",  "_Soil_Temp"
+    ];
+% Minute backup file
+varNames = typhaMarshMinuteTblBkup.Properties.VariableNames;
+typhaMarshMinuteTblBkup.Properties.VariableNames = renameVarNames(varNames, replacePairs);
 
-typhaMarsh5MinuteTblBkup.Properties.VariableNames = newVarNames;
+% Also rename the 5 minute backup file.  The mapping is different
+replacePairs = [
+    "_10cm", "_40cm_Avg"
+    "_20cm", "_30cm_Avg"
+    "_30cm", "_20cm_Avg"
+    "_40cm", "_10cm_Avg"
+    "_Temp",  "_Soil_Temp"
+    ];
+varNames = typhaMarsh5MinuteTblBkup.Properties.VariableNames;
+typhaMarsh5MinuteTblBkup.Properties.VariableNames = renameVarNames(varNames, replacePairs);
 
-% Merge the backup with the current file
+% Merge the backups with the current files.
+
+typhaMarshMinuteTbl = [typhaMarshMinuteTblBkup; typhaMarshMinuteTbl];
+typhaMarshMinuteTbl = removevars(typhaMarshMinuteTbl,"RECORD"); % Remove the record variable.
+typhaMarshMinuteTbl = dedupTimetable(typhaMarshMinuteTbl,"typhaMarshMinuteTbl"); % Remove duplicates
+
 typhaMarsh5MinuteTbl = [typhaMarsh5MinuteTblBkup; typhaMarsh5MinuteTbl];
-
-typhaMarsh5MinuteTbl = removevars(typhaMarsh5MinuteTbl,"RECORD"); % Remove the record
+typhaMarsh5MinuteTbl = removevars(typhaMarsh5MinuteTbl,"RECORD"); % Remove the record variable. 
 typhaMarsh5MinuteTbl = dedupTimetable(typhaMarsh5MinuteTbl,"typhaMarsh5MinuteTbl"); % Remove duplicates
+
+% Rename probe 2 variables to correct offset depths.
+replacePairs = [
+    "P2_10cm", "P2_05cm"
+    "P2_20cm", "P2_15cm"
+    "P2_30cm", "P2_25cm"
+    "P2_40cm", "P2_35cm"
+    ];
+% 1 minute
+varNames = typhaMarshMinuteTblBkup.Properties.VariableNames;
+typhaMarshMinuteTblBkup.Properties.VariableNames = renameVarNames(varNames, replacePairs);
+% 5 minute 
+varNames = typhaMarsh5MinuteTblBkup.Properties.VariableNames;
+typhaMarsh5MinuteTblBkup.Properties.VariableNames = renameVarNames(varNames, replacePairs);
 
 % Save files
 save(fullfile(resultsFolder,"typhaMarshMinuteTbl.mat"),"typhaMarshMinuteTbl")
@@ -223,25 +230,6 @@ highMarsh5MinuteTbl_Eh = [highMarsh5MinuteTbl,highMarsh5MinuteTblEh];
 save(fullfile(resultsFolder,"highMarshMinuteTbl_Eh.mat"),"highMarshMinuteTbl_Eh")
 save(fullfile(resultsFolder,"highMarsh5MinuteTbl_Eh.mat"),"highMarsh5MinuteTbl_Eh")
 
-% Low Marsh
-% % Adjust reference base if necessary
-% adjustStartDate = datetime("2026-04-14 14:00:00","TimeZone","-05:00");
-% adjustEndDate = datetime("2026-05-13 11:00:00","TimeZone","-05:00");
-% vars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"cm"));
-% refVars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref_0"));
-% lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,refVars);
-% 
-% vars = lowMarsh5MinuteTbl.Properties.VariableNames(contains(lowMarsh5MinuteTbl.Properties.VariableNames,"cm"));
-% lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars);
-% 
-% adjustStartDate = datetime("2026-08-10 19:24:00","TimeZone","-05:00");
-% adjustEndDate = datetime("2026-11-01 00:00:00","TimeZone","-05:00");
-% refVars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref_08"));
-% vars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"cmAdjusted"));
-% lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,refVars);
-% 
-% lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,refVars);
-
 % Average the two soil temperatures
 lowMarsh5MinuteTbl.avgSoilTemp = (lowMarsh5MinuteTbl.Soil_C_1_Avg + lowMarsh5MinuteTbl.Soil_C_2_Avg)/2;
 % Low marsh minute data did not have the soil values. Use 'first' so the 1 minute
@@ -262,9 +250,9 @@ lowMarsh5MinuteTbl_Eh = [lowMarsh5MinuteTbl,lowMarsh5MinuteEh];
  save(fullfile(resultsFolder,"lowMarshMinuteTbl_Eh.mat"),"lowMarshMinuteTbl_Eh")
  save(fullfile(resultsFolder,"lowMarsh5MinuteTbl_Eh.mat"),"lowMarsh5MinuteTbl_Eh")
 
- % Typha Marsh Redox
+ %% Typha Marsh Redox
 
- %Use the two soil temperatures
+ % Use the two soil temperatures
  % Probe 2 temperature sensor was not wired until later.
  mask =typhaMarshMinuteTbl.P2_Soil_Temp_C < 0 ;
  typhaMarshMinuteTbl.P2_Soil_Temp_C(mask) = NaN;
@@ -276,7 +264,7 @@ lowMarsh5MinuteTbl_Eh = [lowMarsh5MinuteTbl,lowMarsh5MinuteEh];
  vars = varNames( contains(varNames,'P1') & contains(varNames,'cm') );
  typhaMinuteP1Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P1_Soil_Temp_C);
  % Probe 2
- vars = varNames( contains(varNames,'P2') & contains(varNames,'cm') );
+ vars = varNames(contains(varNames,'P2') & contains(varNames,'cm') );
  typhaMinuteP2Eh = mV2Eh(typhaMarshMinuteTbl,vars,typhaMarshMinuteTbl.P2_Soil_Temp_C);
  typhaMarshMinuteTbl_Eh = [typhaMarshMinuteTbl,[typhaMinuteP1Eh, typhaMinuteP2Eh]];
  % 5 minute data
