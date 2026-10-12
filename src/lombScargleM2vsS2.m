@@ -30,8 +30,11 @@ resultsFolder = fullfile(projectRoot,"results");
 % P1 channel labels are NOT offset from installed depth (unlike P2, where
 % plot_Typha_redox.m renames P2_10cm -> P2_05cm etc.), so P1_10cmEh is the 10 cm
 % sensor while P2_10cmEh is at 5 cm, P2_20cmEh at 15 cm, and so on.
-% These three may be pre-set by a caller - a driver that runs this script over
+% These may be pre-set by a caller - a driver that runs this script over
 % several channels for comparison - in which case the defaults are not applied.
+% tblName selects the source table in results\ (<tblName>.mat holding a timetable
+% of the same name); it defaults to the Typha marsh.
+if ~exist("tblName","var"),    tblName    = "typhaMarshMinuteTbl_Eh"; end
 if ~exist("varName","var"),    varName    = "P1_10cmEh"; end
 if ~exist("depthLabel","var"), depthLabel = "10 cm";     end
 if ~exist("startDate","var")
@@ -58,11 +61,17 @@ bandHours     = [11 13.5];       % Lomb-Scargle zoom window
 nFreq         = 20000;           % dense frequency grid across that band
 
 %% Load the redox channel
-load(fullfile(resultsFolder,"typhaMarshMinuteTbl_Eh.mat"),"typhaMarshMinuteTbl_Eh");
-T = typhaMarshMinuteTbl_Eh;
+S = load(fullfile(resultsFolder,tblName+".mat"),tblName);
+T = S.(tblName);
+clear S
 
 % timerange is half-open, so extend one sample past the last timestamp to include it
 dataEnd = max(T.Properties.RowTimes);
+% A caller may pre-set windowEnd (exclusive) to stop before the end of the data,
+% e.g. to exclude a step change that would contaminate every scale.
+if exist("windowEnd","var") && windowEnd <= dataEnd
+    dataEnd = windowEnd - minutes(1);
+end
 endDate = dataEnd + minutes(1);
 
 W = T(timerange(startDate,endDate), varName);

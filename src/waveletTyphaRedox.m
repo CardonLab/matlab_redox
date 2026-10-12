@@ -28,8 +28,12 @@ resultsFolder = fullfile(projectRoot,"results");
 % P1 channel labels are NOT offset from installed depth (unlike P2, where
 % plot_Typha_redox.m renames P2_10cm -> P2_05cm etc.), so P1_10cmEh is the 10 cm
 % sensor while P2_10cmEh is at 5 cm, P2_20cmEh at 15 cm, and so on.
-% These three may be pre-set by a caller - a driver that runs this script over
+% These may be pre-set by a caller - a driver that runs this script over
 % several channels for comparison - in which case the defaults are not applied.
+% tblName/siteLabel select the source table in results\ (<tblName>.mat holding a
+% timetable of the same name); they default to the Typha marsh.
+if ~exist("tblName","var"),    tblName    = "typhaMarshMinuteTbl_Eh"; end
+if ~exist("siteLabel","var"),  siteLabel  = "Typha marsh"; end
 if ~exist("varName","var"),    varName    = "P1_10cmEh"; end
 if ~exist("depthLabel","var"), depthLabel = "10 cm";     end
 if ~exist("startDate","var")
@@ -60,16 +64,22 @@ refPeriods = [hours(12.4206) hours(24) hours(6.2103) msfPeriod];
 refLabels  = ["M2 12.42 h" "diurnal ~24 h" "M4 6.21 h" "Msf 14.77 d"];
 
 %% Load and extract the channel
-load(fullfile(resultsFolder,"typhaMarshMinuteTbl_Eh.mat"),"typhaMarshMinuteTbl_Eh");
-T = typhaMarshMinuteTbl_Eh;
+S = load(fullfile(resultsFolder,tblName+".mat"),tblName);
+T = S.(tblName);
+clear S
 if ~ismember(varName,string(T.Properties.VariableNames))
     error("waveletTyphaRedox:noSuchVariable", ...
-        "%s is not a variable in typhaMarshMinuteTbl_Eh. Available: %s", ...
-        varName, strjoin(string(T.Properties.VariableNames),", "));
+        "%s is not a variable in %s. Available: %s", ...
+        varName, tblName, strjoin(string(T.Properties.VariableNames),", "));
 end
 
 % timerange is half-open, so extend one sample past the last timestamp to include it
 dataEnd = max(T.Properties.RowTimes);
+% A caller may pre-set windowEnd (exclusive) to stop before the end of the data,
+% e.g. to exclude a step change that would contaminate every scale.
+if exist("windowEnd","var") && windowEnd <= dataEnd
+    dataEnd = windowEnd - minutes(1);
+end
 endDate = dataEnd + minutes(1);
 
 W = T(timerange(startDate,endDate), varName);
@@ -215,7 +225,7 @@ tl = tiledlayout(fig1,4,1,TileSpacing="compact",Padding="compact");
 ax1 = nexttile(tl);
 plot(ax1,t,xRaw,LineWidth=0.75,Color=[0 0.35 0.7]);
 ylabel(ax1,"Eh (mV)");
-title(ax1,sprintf("%s (%s depth) - Typha marsh",varName,depthLabel),Interpreter="none");
+title(ax1,sprintf("%s (%s depth) - %s",varName,depthLabel,siteLabel),Interpreter="none");
 grid(ax1,"on"); box(ax1,"on");
 
 ax2 = nexttile(tl);
