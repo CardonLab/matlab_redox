@@ -36,9 +36,11 @@ resultsFolder = fullfile(projectRoot,"results");  % saved .mat files
 %%
 %[text] #### **Read Low Marsh redox data files and adjust the redox data when the base reference became unstable.** 
 %[text] There where two periods when the base reference is unstable: 
-%[text] - April 14 to May 13 ( base reference was switched May 13). Ref\_06 was used to adjust the data and then was switched to be base.
-%[text] - Aug 10th to when the probes are pulled.   Ref\_06 (base) became unstable. Using Ref\_08 to correct the data.  
-%[text] - Around Aug 24th Ref\_08 becomes unstable \
+%[text] - April 14 to May 13 ( base reference was switched May 13). Ref\_06 was used to adjust the data and then was rewired to be base. Ref\_05 was wired to where ref\_06 was on the multiplexer.  Data logger program was not changed to reflex the new locations.  Using code to relabel variable Ref\_06 to Ref\_05.
+%[text] - Aug 10th to when the probes are pulled.   Ref\_06 (base) became unstable. Using Ref\_08 to correct the data.
+%[text] - Around Aug 24th Ref\_08 becomes unstable
+%[text] - September 30th changed KCl in reference probes except Ref\_08, which we could not find since the tide was high
+%[text] - Base reference started to be unstable 03 Oct. Using Ref\_15 as base \
 %-----------------------------------------------------------------------------------------
 % low marsh redox data.
 %-----------------------------------------------------------------------------------------
@@ -54,24 +56,36 @@ lowMarshMinuteTbl = dedupTimetable(lowMarshMinuteTbl,"lowMarshMinuteTbl"); % Rem
 lowMarsh5MinuteTbl = loadCSfile(lowMarsh5MinuteFile,'Select low marsh 5 minute .dat file');
 lowMarsh5MinuteTbl = removevars(lowMarsh5MinuteTbl,["RECORD","PTemp_C_Avg"]); % Remove the record
 lowMarsh5MinuteTbl = dedupTimetable(lowMarsh5MinuteTbl,"lowMarsh5MinuteTbl"); % Remove duplicates
-%-------------------------------------------------------------------------------%
+
 % Correct reference base using the spare references
 %-------------------------------------------------------------------------------%
-% Adjust reference base at the beginning before switching Ref_06 as base reference
+% Adjust reference base at the beginning before rewiring Ref_06 in as the 
+% base reference. Using the average of Ref_06 and Ref_08, but not Ref_15 which has 
+% an offset. Ref_05 was the base reference. Moved Ref_05 to Ref_06 multiplexer channel 
+% and Ref_06 to where Ref_05 was wired. 
+% The data logger program was not changed so need to use code to relabel Ref_06 to 
+%  Ref_05 after the switched.
+% Use custom function adjustBase.m to adjust the probes. Need to pass the timetable,
+% start data, end date, variables to adjust, and the spare references to be
+% use as base.
+%-------------------------------------------------------------------------------%
 adjustStartDate = datetime("2026-04-14 14:00:00","TimeZone","-05:00");
 adjustEndDate = datetime("2026-05-13 11:00:00","TimeZone","-05:00");
-% Use adjustBase.m function to adjust the probes. Passing the timetable,
-% start data, end date, variables to adjust, and the spare references
-vars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"cm"));
+vars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"cm") | ...
+    contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref"));
 % Using Ref_06, Ref_08.  Not Ref_15 which has an offset.
-refVars = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref_0"));
-lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,refVars);
+newBaseRef = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref_0"));
+% Exclude new Base Ref
+vars = vars(~contains(vars,newBaseRef));
+lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
+
 % 5 minute data
 vars = lowMarsh5MinuteTbl.Properties.VariableNames(contains(lowMarsh5MinuteTbl.Properties.VariableNames,"cm"));
-lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,refVars);
+newBaseRef = lowMarsh5MinuteTbl.Properties.VariableNames(contains(lowMarsh5MinuteTbl.Properties.VariableNames,"Ref_0"));
+lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
 
 % Rename variable Ref_06 after switching it to base reference
-switchTime = datetime("2026-04-14 14:00:00","TimeZone","-05:00"); % set the switch time you want
+switchTime = datetime("2026-05-13 11:00:00","TimeZone","-05:00"); % set the switch time you want
 rt  = lowMarshMinuteTbl.Properties.RowTimes;
 if ~ismember("Ref_05", lowMarshMinuteTbl.Properties.VariableNames)
     lowMarshMinuteTbl.Ref_05 = NaN(height(lowMarshMinuteTbl),1);
@@ -79,6 +93,7 @@ end
 idx = rt >= switchTime;
 lowMarshMinuteTbl.Ref_05(idx) = lowMarshMinuteTbl.Ref_06(idx);
 lowMarshMinuteTbl.Ref_06(idx) = NaN;
+lowMarshMinuteTbl.Ref_06Adjusted(idx) = NaN;
 
 % Repeat for 5-minute table
 rt5 = lowMarsh5MinuteTbl.Properties.RowTimes;
@@ -90,11 +105,40 @@ lowMarsh5MinuteTbl.Ref_05_Avg(idx5) = lowMarsh5MinuteTbl.Ref_06_Avg(idx5);
 lowMarsh5MinuteTbl.Ref_06_Avg(idx5) = NaN;
 
 %-------------------------------------------------------------------------------%
-% Base reference started to be unstable 10 Aug. Using Ref_08 as base
+% Base reference started to be unstable 10 Aug. Using the mean of the spare
+% references Ref_05, Ref_08 and Ref_15 as base. They agree within ~10 mV until
+% Aug 22, then Ref_15 steps +40 mV (Aug 23) and Ref_08 becomes unstable
+% (Aug 26). Averaging all three gave the most stable 30 cm probes; Ref_08
+% alone was worse. baseCorrUncertainty records the spread of the spares.
 %-------------------------------------------------------------------------------%
 adjustStartDate = datetime("2026-08-10 19:24:00","TimeZone","-05:00");
+adjustEndDate = datetime("2026-09-30 13:00:00","TimeZone","-05:00");
+newBaseRef = ["Ref_05","Ref_08","Ref_15"];
+vars = lowMarshMinuteTbl.Properties.VariableNames( ...
+    contains(lowMarshMinuteTbl.Properties.VariableNames,"cmAdjusted") | ...
+    contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref") & ...
+    endsWith(lowMarshMinuteTbl.Properties.VariableNames,"Adjusted"));
+% Exclude new Base Ref
+vars = vars(~contains(vars,newBaseRef));
+% Adjust the value with the new base reference
+lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
+% Adjust the 5 minute values
+newBaseRef = ["Ref_05_Avg","Ref_08_Avg","Ref_15_Avg"];
+vars = lowMarsh5MinuteTbl.Properties.VariableNames( ...
+    contains(lowMarsh5MinuteTbl.Properties.VariableNames,"cm_AvgAdjusted"));% | ...
+    %contains(lowMarsh5MinuteTbl.Properties.VariableNames,"Ref"));
+% Exclude new Base Ref
+vars = vars(~contains(vars,newBaseRef));
+lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
+
+%-------------------------------------------------------------------------------%
+% Base reference started to be unstable 03 Oct. Using the mean of Ref_05 and
+% Ref_15 as base (both refilled Sep 30, agree within ~1-7 mV). Ref_08 was not
+% refilled and drifts 100-650 mV, so it is not used.
+%-------------------------------------------------------------------------------%
+adjustStartDate = datetime("2026-10-03 00:00:00","TimeZone","-05:00");
 adjustEndDate = datetime("2026-11-01 00:00:00","TimeZone","-05:00");
-newBaseRef = lowMarshMinuteTbl.Properties.VariableNames(contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref_08"));
+newBaseRef = ["Ref_05","Ref_15"];
 vars = lowMarshMinuteTbl.Properties.VariableNames( ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"cmAdjusted") | ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref"));
@@ -103,13 +147,14 @@ vars = vars(~contains(vars,newBaseRef));
 % Adjust the value with the new base reference
 lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
 % Adjust the 5 minute values
-newBaseRef = lowMarsh5MinuteTbl.Properties.VariableNames(contains(lowMarsh5MinuteTbl.Properties.VariableNames,"Ref_08"));
+newBaseRef = ["Ref_05_Avg","Ref_15_Avg"];
 vars = lowMarsh5MinuteTbl.Properties.VariableNames( ...
     contains(lowMarsh5MinuteTbl.Properties.VariableNames,"cm_AvgAdjusted") | ...
     contains(lowMarsh5MinuteTbl.Properties.VariableNames,"Ref"));
 % Exclude new Base Ref
 vars = vars(~contains(vars,newBaseRef));
 lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
+
 
 % Save files
 save(fullfile(resultsFolder,"lowMarshMinuteTbl.mat"),"lowMarshMinuteTbl")
