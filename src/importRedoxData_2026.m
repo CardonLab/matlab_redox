@@ -1,5 +1,5 @@
 %[text] ## Import Low, High, and *Typha* marsh redox 1 and 5 minute 2026 data and output a temperature corrected Eh time table.
-%% Set folder and files paths.
+%%\ Set folder and files paths.
 %----------------------------------------------------------------------------------------
 % Project paths, resolved from this file's location so the script runs from any folder.
 % mfilename is unreliable in the Live Editor: the script is evaluated through a
@@ -113,7 +113,7 @@ lowMarsh5MinuteTbl.Ref_06_Avg(idx5) = NaN;
 %-------------------------------------------------------------------------------%
 adjustStartDate = datetime("2026-08-10 19:24:00","TimeZone","-05:00");
 adjustEndDate = datetime("2026-09-30 13:00:00","TimeZone","-05:00");
-newBaseRef = ["Ref_05","Ref_08","Ref_15"];
+newBaseRef = ["Ref_08","Ref_15"];
 vars = lowMarshMinuteTbl.Properties.VariableNames( ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"cmAdjusted") | ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref") & ...
@@ -123,7 +123,7 @@ vars = vars(~contains(vars,newBaseRef));
 % Adjust the value with the new base reference
 lowMarshMinuteTbl = adjustRefBase(lowMarshMinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
 % Adjust the 5 minute values
-newBaseRef = ["Ref_05_Avg","Ref_08_Avg","Ref_15_Avg"];
+newBaseRef = ["Ref_08_Avg","Ref_15_Avg"];
 vars = lowMarsh5MinuteTbl.Properties.VariableNames( ...
     contains(lowMarsh5MinuteTbl.Properties.VariableNames,"cm_AvgAdjusted"));% | ...
     %contains(lowMarsh5MinuteTbl.Properties.VariableNames,"Ref"));
@@ -132,13 +132,13 @@ vars = vars(~contains(vars,newBaseRef));
 lowMarsh5MinuteTbl = adjustRefBase(lowMarsh5MinuteTbl,adjustStartDate,adjustEndDate,vars,newBaseRef);
 
 %-------------------------------------------------------------------------------%
-% Base reference started to be unstable 03 Oct. Using the mean of Ref_05 and
+% Base reference started to be unstable 03 Oct. Using  
 % Ref_15 as base (both refilled Sep 30, agree within ~1-7 mV). Ref_08 was not
 % refilled and drifts 100-650 mV, so it is not used.
 %-------------------------------------------------------------------------------%
 adjustStartDate = datetime("2026-10-03 00:00:00","TimeZone","-05:00");
-adjustEndDate = datetime("2026-11-01 00:00:00","TimeZone","-05:00");
-newBaseRef = ["Ref_05","Ref_15"];
+adjustEndDate = datetime("2026-11-11 00:00:00","TimeZone","-05:00");
+newBaseRef = "Ref_15";
 vars = lowMarshMinuteTbl.Properties.VariableNames( ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"cmAdjusted") | ...
     contains(lowMarshMinuteTbl.Properties.VariableNames,"Ref"));
@@ -295,7 +295,7 @@ lowMarsh5MinuteTbl_Eh = [lowMarsh5MinuteTbl,lowMarsh5MinuteEh];
  save(fullfile(resultsFolder,"lowMarshMinuteTbl_Eh.mat"),"lowMarshMinuteTbl_Eh")
  save(fullfile(resultsFolder,"lowMarsh5MinuteTbl_Eh.mat"),"lowMarsh5MinuteTbl_Eh")
 
- %% Typha Marsh Redox
+ %%\ Typha Marsh Redox
 
  % Use the two soil temperatures
  % Probe 2 temperature sensor was not wired until later.
