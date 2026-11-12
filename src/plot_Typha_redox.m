@@ -28,11 +28,11 @@ else
             v(rowsBefore) = NaN;
             df_logger.(varNames{k}) = v;
         end
-    end
+    end 
 end
 % Select timestamp and columns"
 redoxCols = contains(df_logger.Properties.VariableNames, {'cmEh'}, IgnoreCase=true);
-selectedData = df_logger(:, [true, redoxCols(2:end)]); % keep timestamp and redox columns
+selectedData = df_logger(:, redoxCols); % keep timestamp and redox columns
 
 % Convert from wide to long format
 timestamp = selectedData.TIMESTAMP;
@@ -52,7 +52,9 @@ for i = 1:length(varNames)
     longValue = [longValue; colValues(validIdx)];
 end
 
-% Plot
+% ---------------------------------------------
+% Plot both probes
+% ---------------------------------------------
 figure;
 hold on;
 keys = unique(longKey);
@@ -85,8 +87,9 @@ hold off;
 resultDir = strcat(currentProject().RootFolder,"\results\");
 savefig(gcf,strcat(resultDir,"\TyphaMarshProbe.fig"));
 
-%  Plot probes 
-
+% ---------------------------------------------
+%  Plot each probe in a separate figure 
+% ---------------------------------------------
 redoxCols = contains(df_logger.Properties.VariableNames, {'05cm'}, IgnoreCase=true);
 selectedData = df_logger(:, [true, redoxCols(2:end)]); % keep timestamp and redox columns
 
@@ -116,8 +119,6 @@ if ~isempty(longKey)
     customLineStyles = ["-";":";"-.";"-";"--"];
     customColors = [0 0 1;0 1 0;1 0 0;0 0 0]; % blue,green,red,black
     widths = [1.5,2.0,2.5,2.75]; % Vary the line widths
-
-
     for i = 1:length(keys)    
         idx = strcmp(longKey, keys{i});
         plot(longTimestamp(idx), longValue(idx), 'DisplayName', keys{i});
@@ -138,7 +139,7 @@ end
 probes = (["P1","P2"]);
 for f = 1:numel(probes) 
     names = df_logger.Properties.VariableNames;
-    redoxCols = contains(names, probes(f), 'IgnoreCase', true) & contains(names, "Eh", 'IgnoreCase', true);
+    redoxCols = contains(names, probes(f), 'IgnoreCase', true) & endsWith(names, "cm", 'IgnoreCase', true);
     selectedData = df_logger(:, [true, redoxCols(2:end)]); % keep timestamp and redox columns
     
     % Convert from wide to long format
@@ -221,3 +222,28 @@ fig_soil = plot(df_logger, "TIMESTAMP",vars);
 title("Typha Marsh Soil Temperature");
 ylabel('Celsius');
 legend
+
+% plot battery volts
+figure;
+batVars = df_logger.Properties.VariableNames;
+vars = batVars(contains(batVars, 'batt', IgnoreCase=true));  
+fig_ref = plot(df_logger, "TIMESTAMP",vars);
+hold on
+title("Battery volts");
+ylabel('volts');
+xlim(ax,[startDateP1 max(df_logger.TIMESTAMP)]);    
+legend('Interpreter', 'none'); % Don't interpret "_" as subscripts
+hold off 
+
+% plot Reference probe
+figure;
+RefVars = df_logger.Properties.VariableNames;
+vars = batVars(contains(batVars, 'Ref', IgnoreCase=true));  
+fig_ref = plot(df_logger, "TIMESTAMP",vars);
+hold on
+title("Reference probe");
+ylabel('mv');
+xlim(ax,[startDateP1 max(df_logger.TIMESTAMP)]);    
+legend('Interpreter', 'none'); % Don't interpret "_" as subscripts
+ylim([-91.4 23.0])
+hold off 
